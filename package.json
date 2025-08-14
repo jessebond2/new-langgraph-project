@@ -1,0 +1,14 @@
+{
+  "name": "new-langgraph-project",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:jessebond2/new-langgraph-project.git",
+  "author": "jessebond2 <jesse.bond@headspace.com>",
+  "license": "",
+  "dependencies": {
+    "@langchain/langgraph-sdk": "^0.0.107"
+  },
+  "scripts": {
+    "test": "node bin/test.js"
+  }
+}
