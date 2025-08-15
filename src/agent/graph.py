@@ -163,7 +163,7 @@ async def make_single_request_with_tracing(session: aiohttp.ClientSession, url: 
                 if lifecycle.response_start:
                     time_to_first_byte = lifecycle.response_start - lifecycle.start_time
                 
-                return {
+                out =  {
                     "request_id": request_id,
                     "success": True,
                     "total_duration": total_duration,
@@ -197,6 +197,8 @@ async def make_single_request_with_tracing(session: aiohttp.ClientSession, url: 
                         "response_end": lifecycle.response_end
                     }
                 }
+                graph.stream(out)
+                return out
                 
     except Exception as e:
         total_duration = time.time() - lifecycle.start_time
