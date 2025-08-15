@@ -140,7 +140,6 @@ async def make_single_request_with_tracing(session: aiohttp.ClientSession, url: 
                 lifecycle.status_code = response.status
                 lifecycle.response_headers = dict(response.headers)
                 
-                response.raise_for_status()
                 data = await response.json()
                 
                 # Calculate detailed timings in milliseconds
