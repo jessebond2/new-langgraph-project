@@ -254,8 +254,6 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     if not jwt:
         raise ValueError("JWT is required")
     
-    # Build search URL using data from initial request
-    search_api_url = f"https://api.prod.headspace.com/recall/v1/searches?query={state.query}&locale={state.locale}&limit={state.limit}"
     headers = {
         "Authorization": f"Bearer {jwt}"
     }
@@ -265,7 +263,7 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     
     # Make concurrent requests using num_requests from initial request with detailed tracking
     tasks = [
-        make_single_request_with_tracing(None, search_api_url, headers, i+1) 
+        make_single_request_with_tracing(None, state.url, headers, i+1) 
         for i in range(state.num_requests)
     ]
     
