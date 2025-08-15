@@ -206,7 +206,7 @@ async def make_single_request_with_tracing(session: aiohttp.ClientSession, url: 
         total_duration_ms = (time.time() - lifecycle.start_time) * 1000
         lifecycle.error = str(e)
         
-        return {
+        out = {
             "request_id": request_id,
             "success": False,
             "total_duration": round(total_duration_ms, 3),
@@ -240,7 +240,8 @@ async def make_single_request_with_tracing(session: aiohttp.ClientSession, url: 
                 "response_end": lifecycle.response_end
             }
         }
-
+        graph.stream(out)
+        return out
 
 @traceable(client=client)
 async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
