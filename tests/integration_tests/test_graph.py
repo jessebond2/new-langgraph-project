@@ -17,4 +17,6 @@ async def test_agent_simple_passthrough() -> None:
     assert res is not None
     assert "summary" in res
     assert "request_params" in res
-    assert "latency_stats" in res
+    assert "basic_stats" in res
+    assert "detailed_lifecycle_stats" in res
+    assert "individual_request_details" in res

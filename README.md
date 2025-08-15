@@ -28,11 +28,16 @@ pip install -e . "langgraph-cli[inmem]"
 cp .env.example .env
 ```
 
-If you want to enable LangSmith tracing, add your LangSmith API key to the `.env` file.
+Add your environment variables to the `.env` file:
 
 ```text
 # .env
+# Required: JWT Token for API authentication
+JWT_TOKEN=your_jwt_token_here
+
+# Optional: LangSmith tracing
 LANGSMITH_API_KEY=lsv2...
+LANGSMITH_TRACING=true
 ```
 
 3. Start the LangGraph Server.
@@ -58,4 +63,3 @@ Follow-up requests extend the same thread. You can create an entirely new thread
 For more advanced features and examples, refer to the [LangGraph documentation](https://langchain-ai.github.io/langgraph/). These resources can help you adapt this template for your specific use case and build more sophisticated conversational agents.
 
 LangGraph Studio also integrates with [LangSmith](https://smith.langchain.com/) for more in-depth tracing and collaboration with teammates, allowing you to analyze and optimize your chatbot's performance.
-

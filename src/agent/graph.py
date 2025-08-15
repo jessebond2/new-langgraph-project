@@ -6,6 +6,7 @@ Returns a predefined response. Replace logic and configuration as needed.
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, TypedDict
@@ -95,7 +96,6 @@ class State:
     num_requests: int = 25
     limit: int = 100
     locale: str = "en-US"
-    jwt: str = ""
 
 
 async def make_single_request_with_tracing(session: aiohttp.ClientSession, url: str, headers: Dict[str, str], request_id: int) -> Dict[str, Any]:
@@ -233,9 +233,9 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     Makes concurrent API requests using data from the initial request and tracks individual and average latencies.
     """
 
-    jwt = state.jwt
+    jwt = os.getenv("JWT_TOKEN")
     if not jwt:
-        raise ValueError("JWT is required")
+        raise ValueError("JWT_TOKEN environment variable is required but not set")
     
     # Build search URL using data from initial request
     search_api_url = f"https://api.prod.headspace.com/recall/v1/searches?query={state.query}&locale={state.locale}&limit={state.limit}"
