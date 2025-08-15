@@ -7,6 +7,14 @@ pytestmark = pytest.mark.anyio
 
 @pytest.mark.langsmith
 async def test_agent_simple_passthrough() -> None:
-    inputs = {"changeme": "some_val"}
+    inputs = {
+        "query": "test search",
+        "num_requests": 5,  # Use fewer requests for testing
+        "limit": 50,
+        "locale": "en-US"
+    }
     res = await graph.ainvoke(inputs)
     assert res is not None
+    assert "summary" in res
+    assert "request_params" in res
+    assert "latency_stats" in res
