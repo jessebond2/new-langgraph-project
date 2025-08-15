@@ -18,9 +18,7 @@ from langgraph.runtime import Runtime
 
 def anonymize_input(key: str, value: Any) -> Any:
     """Anonymize the value."""
-    if key == "jwt":
-        return "<jwt>"
-    return value
+    return "<" + key + ">"
 
 def sanitize_input(input: Dict[str, Any]) -> Dict[str, Any]:
     """Sanitize the input to remove sensitive data."""
@@ -139,43 +137,43 @@ async def make_single_request_with_tracing(session: aiohttp.ClientSession, url: 
                 response.raise_for_status()
                 data = await response.json()
                 
-                # Calculate detailed timings
-                total_duration = lifecycle.response_end - lifecycle.start_time
+                # Calculate detailed timings in milliseconds
+                total_duration_ms = (lifecycle.response_end - lifecycle.start_time) * 1000
                 
-                # Calculate phase durations
-                dns_duration = None
+                # Calculate phase durations in milliseconds
+                dns_duration_ms = None
                 if lifecycle.dns_resolution_start and lifecycle.dns_resolution_end:
-                    dns_duration = lifecycle.dns_resolution_end - lifecycle.dns_resolution_start
+                    dns_duration_ms = (lifecycle.dns_resolution_end - lifecycle.dns_resolution_start) * 1000
                 
-                connection_duration = None
+                connection_duration_ms = None
                 if lifecycle.connection_create_start and lifecycle.connection_create_end:
-                    connection_duration = lifecycle.connection_create_end - lifecycle.connection_create_start
+                    connection_duration_ms = (lifecycle.connection_create_end - lifecycle.connection_create_start) * 1000
                 
-                request_duration = None
+                request_duration_ms = None
                 if lifecycle.request_start and lifecycle.request_end:
-                    request_duration = lifecycle.request_end - lifecycle.request_start
+                    request_duration_ms = (lifecycle.request_end - lifecycle.request_start) * 1000
                 
-                response_duration = None
+                response_duration_ms = None
                 if lifecycle.response_start and lifecycle.response_end:
-                    response_duration = lifecycle.response_end - lifecycle.response_start
+                    response_duration_ms = (lifecycle.response_end - lifecycle.response_start) * 1000
                 
-                time_to_first_byte = None
+                time_to_first_byte_ms = None
                 if lifecycle.response_start:
-                    time_to_first_byte = lifecycle.response_start - lifecycle.start_time
+                    time_to_first_byte_ms = (lifecycle.response_start - lifecycle.start_time) * 1000
                 
                 out =  {
                     "request_id": request_id,
                     "success": True,
-                    "total_duration": total_duration,
+                    "total_duration": round(total_duration_ms, 3),
                     "status_code": response.status,
                     "result_count": len(data.get('results', [])),
                     "error": None,
                     "lifecycle_details": {
-                        "dns_resolution_duration": dns_duration,
-                        "connection_duration": connection_duration,
-                        "request_duration": request_duration,
-                        "response_duration": response_duration,
-                        "time_to_first_byte": time_to_first_byte,
+                        "dns_resolution_duration": round(dns_duration_ms, 3) if dns_duration_ms is not None else None,
+                        "connection_duration": round(connection_duration_ms, 3) if connection_duration_ms is not None else None,
+                        "request_duration": round(request_duration_ms, 3) if request_duration_ms is not None else None,
+                        "response_duration": round(response_duration_ms, 3) if response_duration_ms is not None else None,
+                        "time_to_first_byte": round(time_to_first_byte_ms, 3) if time_to_first_byte_ms is not None else None,
                         "connection_reused": lifecycle.connection_reused,
                         "response_size_bytes": lifecycle.response_size,
                         "method": lifecycle.method,
@@ -201,13 +199,13 @@ async def make_single_request_with_tracing(session: aiohttp.ClientSession, url: 
                 return out
                 
     except Exception as e:
-        total_duration = time.time() - lifecycle.start_time
+        total_duration_ms = (time.time() - lifecycle.start_time) * 1000
         lifecycle.error = str(e)
         
         return {
             "request_id": request_id,
             "success": False,
-            "total_duration": total_duration,
+            "total_duration": round(total_duration_ms, 3),
             "status_code": lifecycle.status_code,
             "result_count": 0,
             "error": str(e),
@@ -268,21 +266,21 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     
     results = await asyncio.gather(*tasks)
     
-    # Calculate overall duration
-    overall_duration = time.time() - overall_start_time
+    # Calculate overall duration in milliseconds
+    overall_duration_ms = (time.time() - overall_start_time) * 1000
     
-    # Extract latencies and calculate statistics from detailed results
-    latencies = [result["total_duration"] for result in results]
+    # Extract latencies and calculate statistics from detailed results (already in ms)
+    latencies_ms = [result["total_duration"] for result in results]
     successful_requests = [r for r in results if r["success"]]
     failed_requests = [r for r in results if not r["success"]]
     
-    # Calculate basic statistics
-    avg_latency = sum(latencies) / len(latencies)
-    min_latency = min(latencies)
-    max_latency = max(latencies)
+    # Calculate basic statistics in milliseconds
+    avg_latency_ms = sum(latencies_ms) / len(latencies_ms)
+    min_latency_ms = min(latencies_ms)
+    max_latency_ms = max(latencies_ms)
     success_rate = len(successful_requests) / len(results) * 100
     
-    # Calculate detailed lifecycle statistics for successful requests
+    # Calculate detailed lifecycle statistics for successful requests (already in ms)
     def calculate_phase_stats(phase_name: str):
         phase_durations = []
         for r in successful_requests:
@@ -292,9 +290,9 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
         
         if phase_durations:
             return {
-                "avg": sum(phase_durations) / len(phase_durations),
-                "min": min(phase_durations),
-                "max": max(phase_durations),
+                "avg": round(sum(phase_durations) / len(phase_durations), 3),
+                "min": round(min(phase_durations), 3),
+                "max": round(max(phase_durations), 3),
                 "count": len(phase_durations)
             }
         return None
@@ -316,11 +314,11 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     total_response_size = sum(response_sizes)
     avg_response_size = total_response_size / len(response_sizes) if response_sizes else 0
     
-    # Create detailed summary
+    # Create detailed summary with millisecond formatting
     summary = (
-        f"Completed {state.num_requests} concurrent API requests for query '{state.query}' in {overall_duration:.3f}s total. "
+        f"Completed {state.num_requests} concurrent API requests for query '{state.query}' in {overall_duration_ms:.3f}ms total. "
         f"Success rate: {success_rate:.1f}% ({len(successful_requests)}/{state.num_requests}). "
-        f"Latencies - Avg: {avg_latency:.3f}s, Min: {min_latency:.3f}s, Max: {max_latency:.3f}s. "
+        f"Latencies - Avg: {avg_latency_ms:.3f}ms, Min: {min_latency_ms:.3f}ms, Max: {max_latency_ms:.3f}ms. "
     )
     
     if successful_requests:
@@ -340,16 +338,18 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
             "search_url": search_api_url
         },
         "basic_stats": {
-            "individual_latencies": latencies,
-            "average_latency": avg_latency,
-            "min_latency": min_latency,
-            "max_latency": max_latency,
-            "overall_duration": overall_duration,
+            # All timing values are in milliseconds with 3 decimal places precision
+            "individual_latencies": [round(lat, 3) for lat in latencies_ms],
+            "average_latency": round(avg_latency_ms, 3),
+            "min_latency": round(min_latency_ms, 3),
+            "max_latency": round(max_latency_ms, 3),
+            "overall_duration": round(overall_duration_ms, 3),
             "success_rate": success_rate,
             "successful_requests": len(successful_requests),
             "failed_requests": len(failed_requests)
         },
         "detailed_lifecycle_stats": {
+            # All lifecycle timing statistics are in milliseconds with 3 decimal places precision
             "dns_resolution": dns_stats,
             "connection_establishment": connection_stats,
             "request_transmission": request_stats,
