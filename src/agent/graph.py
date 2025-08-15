@@ -328,7 +328,7 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     if failed_requests:
         summary += f"Errors: {len(failed_requests)} requests failed."
     
-    return {
+    out = {
         "summary": summary,
         "request_params": {
             "query": state.query,
@@ -367,6 +367,9 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
         "individual_request_details": results
     }
 
+    graph.stream(out)
+
+    return out
 
 # Define the graph
 graph = (
