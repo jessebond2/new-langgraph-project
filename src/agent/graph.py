@@ -17,7 +17,7 @@ from langgraph.graph import StateGraph
 from langgraph.runtime import Runtime
 from langsmith import Client
 
-langsmith_client = Client(
+client = Client(
   hide_inputs=lambda inputs: {
     "jwt": "<jwt>"
   }
