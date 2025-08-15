@@ -108,6 +108,7 @@ class State:
     """
 
     url: str
+    num_requests: int = 25
     jwt: str = ""
 
 
@@ -250,12 +251,8 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     Makes concurrent API requests using data from the initial request and tracks individual and average latencies.
     """
 
-    jwt = state.jwt
-    if not jwt:
-        raise ValueError("JWT is required")
-    
     headers = {
-        "Authorization": f"Bearer {jwt}"
+        "Authorization": f"Bearer {state.jwt}"
     }
     
     # Record overall start time
@@ -319,7 +316,7 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     
     # Create detailed summary with millisecond formatting
     summary = (
-        f"Completed {state.num_requests} concurrent API requests for query '{state.query}' in {overall_duration_ms:.3f}ms total. "
+        f"Completed {state.num_requests} concurrent API requests for url '{state.url}' in {overall_duration_ms:.3f}ms total. "
         f"Success rate: {success_rate:.1f}% ({len(successful_requests)}/{state.num_requests}). "
         f"Latencies - Avg: {avg_latency_ms:.3f}ms, Min: {min_latency_ms:.3f}ms, Max: {max_latency_ms:.3f}ms. "
     )
@@ -334,11 +331,8 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     out = {
         "summary": summary,
         "request_params": {
-            "query": state.query,
             "num_requests": state.num_requests,
-            "limit": state.limit,
-            "locale": state.locale,
-            "search_url": search_api_url
+            "url": state.url
         },
         "basic_stats": {
             # All timing values are in milliseconds with 3 decimal places precision
