@@ -9,11 +9,22 @@ import asyncio
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, TypedDict
+from langsmith import  traceable
+
 
 import aiohttp
 from langgraph.graph import StateGraph
 from langgraph.runtime import Runtime
 
+def anonymize_input(key: str, value: Any) -> Any:
+    """Anonymize the value."""
+    if key == "jwt":
+        return "<jwt>"
+    return value
+
+def sanitize_input(input: Dict[str, Any]) -> Dict[str, Any]:
+    """Sanitize the input to remove sensitive data."""
+    return {k: anonymize_input(k, v) for k, v in input.items()}
 
 @dataclass
 class RequestLifecycle:
@@ -227,6 +238,7 @@ async def make_single_request_with_tracing(session: aiohttp.ClientSession, url: 
         }
 
 
+@traceable(process_input=sanitize_input)
 async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     """Process input and returns output.
 
