@@ -13,7 +13,6 @@ from langsmith import  traceable
 
 
 import aiohttp
-from aiohttp.resolver import AsyncResolver
 from langgraph.graph import StateGraph
 from langgraph.runtime import Runtime
 from langsmith import Client
@@ -91,33 +90,6 @@ class RequestTracer:
         self.lifecycle.response_size += len(params.chunk)
 
 
-def create_optimized_session() -> aiohttp.ClientSession:
-    """Create an optimized aiohttp session with DNS caching and connection pooling."""
-    # Use fast DNS servers for resolution
-    resolver = AsyncResolver(
-        nameservers=['1.1.1.1', '8.8.8.8'],  # Cloudflare + Google DNS
-    )
-    
-    connector = aiohttp.TCPConnector(
-        resolver=resolver,
-        ttl_dns_cache=300,      # Cache DNS for 5 minutes
-        use_dns_cache=True,     # Enable DNS caching
-        limit=100,              # Total connection pool size
-        limit_per_host=10,      # Max connections per host
-        keepalive_timeout=60,   # Keep connections alive for 60 seconds
-        enable_cleanup_closed=True,
-    )
-    
-    timeout = aiohttp.ClientTimeout(
-        total=30,               # Total timeout
-        connect=5,              # Connection timeout
-    )
-    
-    return aiohttp.ClientSession(
-        connector=connector,
-        timeout=timeout,
-    )
-
 
 class Context(TypedDict):
     """Context parameters for the agent.
@@ -161,10 +133,9 @@ async def make_single_request_with_tracing(session: aiohttp.ClientSession, url: 
     trace_config.on_response_chunk_received.append(tracer.on_response_chunk_received)
     
     try:
-        # Add tracing to the existing session for this specific request
-        session.trace_configs.append(trace_config)
-        try:
-            async with session.get(url, headers=headers) as response:
+        # Create a session with tracing for this specific request
+        async with aiohttp.ClientSession(trace_configs=[trace_config]) as traced_session:
+            async with traced_session.get(url, headers=headers) as response:
                 lifecycle.response_end = time.time()
                 lifecycle.status_code = response.status
                 lifecycle.response_headers = dict(response.headers)
@@ -232,15 +203,8 @@ async def make_single_request_with_tracing(session: aiohttp.ClientSession, url: 
                 }
                 graph.stream(out)
                 return out
-        finally:
-            # Clean up the trace config to avoid accumulating them
-            if trace_config in session.trace_configs:
-                session.trace_configs.remove(trace_config)
                 
     except Exception as e:
-        # Clean up trace config on exception too
-        if trace_config in session.trace_configs:
-            session.trace_configs.remove(trace_config)
             
         total_duration_ms = (time.time() - lifecycle.start_time) * 1000
         lifecycle.error = str(e)
@@ -296,20 +260,13 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     # Record overall start time
     overall_start_time = time.time()
     
-    # Create optimized session with DNS caching
-    session = create_optimized_session()
+    # Make concurrent requests using num_requests from initial request with detailed tracking
+    tasks = [
+        make_single_request_with_tracing(None, state.url, headers, i+1) 
+        for i in range(state.num_requests)
+    ]
     
-    try:
-        # Make concurrent requests using num_requests from initial request with detailed tracking
-        tasks = [
-            make_single_request_with_tracing(session, state.url, headers, i+1) 
-            for i in range(state.num_requests)
-        ]
-        
-        results = await asyncio.gather(*tasks)
-    finally:
-        # Ensure session is properly closed
-        await session.close()
+    results = await asyncio.gather(*tasks)
     
     # Calculate overall duration in milliseconds
     overall_duration_ms = (time.time() - overall_start_time) * 1000
