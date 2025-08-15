@@ -15,6 +15,13 @@ from langsmith import  traceable
 import aiohttp
 from langgraph.graph import StateGraph
 from langgraph.runtime import Runtime
+from langsmith import Client
+
+langsmith_client = Client(
+  hide_inputs=lambda inputs: {
+    "jwt": "<jwt>"
+  }
+)
 
 def anonymize_input(key: str, value: Any) -> Any:
     """Anonymize the value."""
@@ -100,10 +107,7 @@ class State:
     See: https://langchain-ai.github.io/langgraph/concepts/low_level/#state
     """
 
-    query: str = "langgraph"
-    num_requests: int = 25
-    limit: int = 100
-    locale: str = "en-US"
+    url: str
     jwt: str = ""
 
 
@@ -238,7 +242,7 @@ async def make_single_request_with_tracing(session: aiohttp.ClientSession, url: 
         }
 
 
-@traceable(process_input=sanitize_input)
+@traceable(client=client)
 async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     """Process input and returns output.
 
